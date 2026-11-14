@@ -26,7 +26,8 @@ export function tryScheduledRun(reason, { force = false } = {}) {
       return { started: false, reason: 'this slot already ran', scanId: last.id };
   }
   try {
-    const scan = startScan({ trigger: 'scheduled' });
+    // a forced run (GitHub "Run workflow" button) is manual: it must not use up the 07:00/19:00 slot
+    const scan = startScan({ trigger: force ? 'manual' : 'scheduled' });
     console.log(`[schedule] started via ${reason}`);
     return { started: true, scanId: scan.id };
   } catch (e) {
