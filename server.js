@@ -14,9 +14,14 @@ app.use(express.json({ limit: '1mb' }));
 
 app.get('/healthz', (_req, res) => res.send('ok'));
 
-const USER = process.env.ADMIN_USER || 'admin';
-const PASS = process.env.ADMIN_PASSWORD || '';
-const CRON_SECRET = process.env.CRON_SECRET || '';
+const USER = (process.env.ADMIN_USER || 'admin').trim();
+const PASS = (process.env.ADMIN_PASSWORD || '').trim();
+const CRON_SECRET = (process.env.CRON_SECRET || '').trim();
+// Setup check: print which settings are present (names only, never values) to catch typos in Render.
+{
+  const names = Object.keys(process.env).filter((k) => /ADMIN|PASS|CRON|GITHUB|BREVO|RESEND|OPENROUTER|EMAIL/i.test(k) && !/^(RENDER|CLAUDE|npm_)/i.test(k));
+  console.log(`[setup] env names present: ${names.sort().join(', ') || '(none)'}`);
+}
 const safeEq = (a, b) => {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -25,7 +30,14 @@ const safeEq = (a, b) => {
 
 // Called by the GitHub Actions workflow at 07:00 / 19:00 Israel time (wakes the free instance).
 app.post('/api/cron', (req, res) => {
-  if (!CRON_SECRET || !safeEq(req.get('x-cron-token') || '', CRON_SECRET)) return res.status(401).json({ error: 'Bad cron token' });
+  if (!CRON_SECRET) {
+    console.log('[cron] rejected: CRON_SECRET is not set on the server');
+    return res.status(503).json({ error: 'CRON_SECRET is not set on the server (Render → Environment)' });
+  }
+  if (!safeEq((req.get('x-cron-token') || '').trim(), CRON_SECRET)) {
+    console.log('[cron] rejected: token does not match CRON_SECRET');
+    return res.status(401).json({ error: 'Bad cron token' });
+  }
   const result = tryScheduledRun('github-actions', { force: req.query.force === '1' });
   console.log('[cron]', result);
   res.json(result);

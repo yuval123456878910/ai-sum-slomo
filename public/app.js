@@ -185,7 +185,7 @@ async function loadScans() {
 function renderScans() {
   $('#scans').innerHTML = scansCache.length ? scansCache.map((s) => {
     const mins = s.finishedAt ? Math.round((Date.parse(s.finishedAt) - Date.parse(s.startedAt)) / 60000) : null;
-    const mail = s.email?.sent ? ` · ✉ ${esc(t('emailSentTo', s.email.to.join(', ')))}` : s.email?.error ? ` · <span class="msg bad">✉ ${esc(t('emailFailed', s.email.error))}</span>` : '';
+    const mail = s.email?.sent ? ` · ✉ ${esc(t('emailSentTo', s.email.to.join(', ')))}` : s.email?.error ? ` · <span class="msg bad">✉ ${esc(t('emailFailed', s.email.error))}</span>` : s.email?.skipped ? ` · ✉ ${t('emailSkipped')}` : '';
     return `
     <div class="scan">
       <div class="scan-head">

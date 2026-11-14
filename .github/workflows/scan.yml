@@ -32,6 +32,7 @@ jobs:
             echo "attempt $i: HTTP $code $(cat out.json 2>/dev/null)"
             [ "$code" = "200" ] && exit 0
             [ "$code" = "401" ] && { echo "::error::CRON_SECRET does not match the Render service."; exit 1; }
+            [ "$code" = "503" ] && { echo "::error::CRON_SECRET is not set in Render (service Environment)."; exit 1; }
             sleep 30
           done
           echo "::error::Site did not respond."; exit 1
