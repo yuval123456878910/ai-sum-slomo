@@ -1,0 +1,28 @@
+# Render Blueprint: New → Blueprint → pick this repo.
+# Render will ask you for the two "sync: false" values (your OpenRouter key and a site password).
+services:
+  - type: web
+    name: stress-radar
+    runtime: node
+    plan: starter          # always-on (free instances sleep and would miss the 07:00/19:00 scans)
+    region: frankfurt      # closest Render region to Israel
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
+      - key: OPENROUTER_API_KEY
+        sync: false        # ← paste your OpenRouter key here when Render asks
+      - key: OPENROUTER_MODEL
+        value: auto        # or e.g. anthropic/claude-sonnet-4.5, openai/gpt-5, google/gemini-2.5-pro
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false        # ← choose a password; the site uses it for browser login
