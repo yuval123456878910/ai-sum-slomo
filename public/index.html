@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Stress Radar</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%2349111c'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23f2f4f3' stroke-width='2'/><circle cx='16' cy='16' r='3' fill='%23a9927d'/></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Hebrew:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Hebrew:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,20 +15,21 @@
     <div class="brand">
       <span class="logo" aria-hidden="true"></span>
       <div>
-        <h1>Stress Radar</h1>
-        <p class="sub">Israeli industry · distress &amp; deal signals</p>
+        <h1 data-i18n="appName">Stress Radar</h1>
+        <p class="sub" data-i18n="tagline">Israeli industry · distress &amp; deal signals</p>
       </div>
     </div>
     <div class="top-right">
-      <span id="statusPill" class="pill">Loading…</span>
-      <button id="runBtn" class="btn primary">Run scan now</button>
+      <span id="statusPill" class="pill">…</span>
+      <button id="runBtn" class="btn primary" data-i18n="runNow">Run scan now</button>
+      <button id="langBtn" class="btn ghost-dark" title="Language / שפה">עברית</button>
     </div>
   </header>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="findings" class="tab active">Findings</button>
-    <button role="tab" data-tab="scans" class="tab">Scan log</button>
-    <button role="tab" data-tab="settings" class="tab">Settings</button>
+    <button role="tab" data-tab="findings" class="tab active" data-i18n="tabFindings">Findings</button>
+    <button role="tab" data-tab="scans" class="tab" data-i18n="tabScans">Scan log</button>
+    <button role="tab" data-tab="settings" class="tab" data-i18n="tabSettings">Settings</button>
   </nav>
 
   <main>
@@ -37,20 +38,20 @@
       <div class="stats" id="stats"></div>
       <div class="chips" id="sectorChips"></div>
       <div class="filter-row">
-        <input id="q" type="search" placeholder="Search company, signal, location…" />
+        <input id="q" type="search" data-i18n-ph="searchPh" placeholder="Search company, signal, location…" />
         <select id="days">
-          <option value="1">Last 24 hours</option>
-          <option value="7" selected>Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="">All time</option>
+          <option value="1" data-i18n="d1">Last 24 hours</option>
+          <option value="7" selected data-i18n="d7">Last 7 days</option>
+          <option value="30" data-i18n="d30">Last 30 days</option>
+          <option value="" data-i18n="dAll">All time</option>
         </select>
-        <label class="range">Deal score ≥ <b id="minScoreVal">0</b>
+        <label class="range"><span data-i18n="minScore">Deal score ≥</span> <b id="minScoreVal">0</b>
           <input id="minScore" type="range" min="0" max="10" value="0" />
         </label>
-        <label class="check"><input id="onlyNew" type="checkbox" /> New only</label>
-        <label class="check"><input id="starred" type="checkbox" /> Starred</label>
-        <label class="check"><input id="showDismissed" type="checkbox" /> Show dismissed</label>
-        <a class="btn ghost small" href="/api/export.csv">Export CSV</a>
+        <label class="check"><input id="onlyNew" type="checkbox" /> <span data-i18n="onlyNew">New only</span></label>
+        <label class="check"><input id="starred" type="checkbox" /> <span data-i18n="starredOnly">Starred</span></label>
+        <label class="check"><input id="showDismissed" type="checkbox" /> <span data-i18n="showDismissed">Show dismissed</span></label>
+        <a class="btn ghost small" href="/api/export.csv" data-i18n="exportCsv">Export CSV</a>
       </div>
       <div id="scanFilter" class="scan-filter" hidden></div>
       <div id="findings" class="cards"></div>
@@ -63,46 +64,83 @@
     <section id="view-settings" class="view" hidden>
       <div class="settings-grid">
         <div class="panel">
-          <h2>OpenRouter API key</h2>
-          <p id="keyStatus" class="key-status"></p>
-          <p class="muted small">Recommended: set <code>OPENROUTER_API_KEY</code> in Render → your service → Environment. A key saved here overrides it <span id="keyTempNote">until the service restarts or goes to sleep (it is never written to GitHub)</span>.</p>
+          <h2 data-i18n="emailTitle">Email results</h2>
+          <p class="muted small" data-i18n-html="emailHelp"></p>
+          <p id="emailProvider" class="key-status"></p>
+          <label class="check big"><input id="emailOn" type="checkbox" /> <span data-i18n="emailOn">Send an email after every scan</span></label>
+          <label class="field"><span data-i18n="emailTo">Send to (one or more addresses, comma-separated)</span>
+            <input id="emailTo" type="email" multiple placeholder="you@example.com" dir="ltr" />
+          </label>
+          <label class="field"><span data-i18n="emailFrom">From (your verified sender address)</span>
+            <input id="emailFrom" type="email" placeholder="alerts@example.com" dir="ltr" />
+          </label>
+          <label class="check"><input id="emailOnlyNew" type="checkbox" /> <span data-i18n="emailOnlyNew">Only companies flagged for the first time</span></label>
+          <label class="range"><span data-i18n="emailMinScore">Only deal score ≥</span> <b id="emailMinVal">0</b>
+            <input id="emailMin" type="range" min="0" max="10" value="0" />
+          </label>
+          <label class="check"><input id="emailEmpty" type="checkbox" /> <span data-i18n="emailEmpty">Email even when nothing matches</span></label>
           <div class="row">
-            <input id="keyInput" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
-            <button id="keyTest" class="btn ghost">Test</button>
-            <button id="keySave" class="btn primary">Save</button>
+            <button id="emailSave" class="btn primary" data-i18n="save">Save</button>
+            <button id="emailTest" class="btn ghost" data-i18n="sendTest">Send test email</button>
           </div>
-          <button id="keyClear" class="btn link">Remove saved key (use the Render env var)</button>
+          <p id="emailMsg" class="msg"></p>
+        </div>
+
+        <div class="panel">
+          <h2 data-i18n="langTitle">Language</h2>
+          <h3 data-i18n="uiLang">Interface (this browser)</h3>
+          <label class="check"><input type="radio" name="uiLang" value="en" /> English</label>
+          <label class="check"><input type="radio" name="uiLang" value="he" /> עברית</label>
+          <h3 data-i18n="outLang">Findings text &amp; emails (next scans)</h3>
+          <label class="check"><input type="radio" name="outLang" value="en" /> English</label>
+          <label class="check"><input type="radio" name="outLang" value="he" /> עברית</label>
+          <p class="muted small" data-i18n="outLangHelp">Applies to new scans. Earlier findings keep their language.</p>
+          <button id="langSave" class="btn primary" data-i18n="save">Save</button>
+          <p id="langMsg" class="msg"></p>
+        </div>
+
+        <div class="panel">
+          <h2 data-i18n="keyTitle">OpenRouter API key</h2>
+          <p id="keyStatus" class="key-status"></p>
+          <p class="muted small" data-i18n-html="keyHelp"></p>
+          <div class="row">
+            <input id="keyInput" type="password" placeholder="sk-or-v1-…" autocomplete="off" dir="ltr" />
+            <button id="keyTest" class="btn ghost" data-i18n="test">Test</button>
+            <button id="keySave" class="btn primary" data-i18n="save">Save</button>
+          </div>
+          <button id="keyClear" class="btn link" data-i18n="keyClear">Remove saved key (use the Render env var)</button>
           <p id="keyMsg" class="msg"></p>
         </div>
 
         <div class="panel">
-          <h2>Research source &amp; model</h2>
-          <label class="check"><input type="radio" name="research" value="free" /> <b>Free</b>: Google News headlines + free model ($0)</label>
-          <label class="check"><input type="radio" name="research" value="web" /> <b>Web search</b>: OpenRouter web plugin, reads full articles (about 4¢ per sector)</label>
-          <p class="muted small"><b>auto</b> picks the best free models (with backups) in Free mode, and the newest Claude Sonnet in Web search mode.</p>
-          <input id="modelFilter" type="search" placeholder="Filter models (claude, gpt, gemini…)" />
-          <select id="modelSelect" size="8"></select>
-          <p class="muted small">Selected: <code id="modelChosen"></code> · resolves to <code id="resolvedModel"></code></p>
-          <label class="field" id="webMaxField">Web results per sector search
+          <h2 data-i18n="modelTitle">Research source &amp; model</h2>
+          <label class="check"><input type="radio" name="research" value="free" /> <span data-i18n-html="resFree"></span></label>
+          <label class="check"><input type="radio" name="research" value="web" /> <span data-i18n-html="resWeb"></span></label>
+          <p class="muted small" data-i18n-html="autoHelp"></p>
+          <input id="modelFilter" type="search" data-i18n-ph="modelFilterPh" placeholder="Filter models…" dir="ltr" />
+          <select id="modelSelect" size="7" dir="ltr"></select>
+          <p class="muted small"><span data-i18n="selected">Selected:</span> <code id="modelChosen"></code> → <code id="resolvedModel"></code></p>
+          <label class="field" id="webMaxField"><span data-i18n="webMax">Web results per sector search</span>
             <input id="webMax" type="number" min="3" max="25" />
           </label>
-          <button id="modelSave" class="btn primary">Save</button>
+          <button id="modelSave" class="btn primary" data-i18n="save">Save</button>
           <p id="modelMsg" class="msg"></p>
         </div>
 
         <div class="panel">
-          <h2>Schedule</h2>
-          <p class="muted small">Automatic scans at <b>07:00</b> and <b>19:00</b> Israel time (Asia/Jerusalem, daylight saving handled).</p>
-          <label class="check big"><input id="schedOn" type="checkbox" /> Scheduled scans on</label>
-          <h3>Sectors to scan</h3>
+          <h2 data-i18n="schedTitle">Schedule</h2>
+          <p class="muted small" data-i18n-html="schedHelp"></p>
+          <label class="check big"><input id="schedOn" type="checkbox" /> <span data-i18n="schedOn">Scheduled scans on</span></label>
+          <h3 data-i18n="sectorsToScan">Sectors to scan</h3>
           <div id="sectorChecks" class="sector-checks"></div>
-          <button id="schedSave" class="btn primary">Save schedule</button>
+          <button id="schedSave" class="btn primary" data-i18n="save">Save</button>
           <p id="schedMsg" class="msg"></p>
         </div>
       </div>
     </section>
   </main>
 
+  <script src="i18n.js"></script>
   <script src="app.js" type="module"></script>
 </body>
 </html>

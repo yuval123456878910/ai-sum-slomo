@@ -6,6 +6,7 @@ import { SECTORS, SECTOR_IDS } from './src/sectors.js';
 import { startScan, currentScan, getApiKey } from './src/scanner.js';
 import { startScheduler, nextRuns, tryScheduledRun, TZ } from './src/scheduler.js';
 import { listModels, checkKey, resolveModel } from './src/openrouter.js';
+import { emailProvider, buildEmail, sendEmail } from './src/email.js';
 
 await load();
 const app = express();
@@ -65,6 +66,8 @@ app.get('/api/status', async (_req, res) => {
     authEnabled: !!PASS,
     storage: storageLabel,
     uiKeyIsTemporary: usesGitHub,
+    emailProvider: emailProvider(),
+    emailFromEnv: process.env.EMAIL_FROM || '',
   });
 });
 
@@ -126,9 +129,34 @@ app.put('/api/settings', (req, res) => {
   if (typeof b.scheduleEnabled === 'boolean') s.scheduleEnabled = b.scheduleEnabled;
   if (b.research === 'free' || b.research === 'web') s.research = b.research;
   if (b.webMaxResults) s.webMaxResults = Math.max(3, Math.min(25, Number(b.webMaxResults) || 10));
+  if (b.language === 'en' || b.language === 'he') s.language = b.language;
+  if (b.email && typeof b.email === 'object') {
+    const e = { ...(s.email || {}) };
+    if (typeof b.email.enabled === 'boolean') e.enabled = b.email.enabled;
+    if (typeof b.email.to === 'string') e.to = b.email.to.trim().slice(0, 500);
+    if (typeof b.email.from === 'string') e.from = b.email.from.trim().slice(0, 200);
+    if (typeof b.email.onlyNew === 'boolean') e.onlyNew = b.email.onlyNew;
+    if (typeof b.email.sendEmpty === 'boolean') e.sendEmpty = b.email.sendEmpty;
+    if (b.email.minScore != null) e.minScore = Math.max(0, Math.min(10, Number(b.email.minScore) || 0));
+    s.email = e;
+  }
   if (typeof b.openrouterKey === 'string') s.openrouterKey = b.openrouterKey.trim(); // "" clears the override
   save();
   res.json({ ok: true });
+});
+
+// Send a test email with the latest scan's findings (or an empty report).
+app.post('/api/email/test', async (req, res) => {
+  const db = getDb();
+  const e = db.settings.email || {};
+  const scan = db.scans.find((s) => s.status !== 'running' && s.findingIds?.length) || db.scans[0];
+  const findings = scan ? db.findings.filter((f) => scan.findingIds?.includes(f.id)).slice(0, 10) : [];
+  try {
+    const { subject, html } = buildEmail({ scan, findings, lang: db.settings.language || 'en', test: true });
+    res.json({ ok: true, ...(await sendEmail({ to: req.body?.to || e.to, from: req.body?.from ?? e.from, subject, html })) });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.get('/api/models', async (_req, res) => {

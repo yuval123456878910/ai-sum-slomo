@@ -69,7 +69,10 @@ OUTPUT: reply with ONE fenced \`\`\`json block and nothing else, matching this s
 }
 "deal_potential.score" is 0–10 (10 = strong, near-term, actionable real-estate or business opportunity).`;
 
-export function sectorPrompt({ sector, today, known, assignedThisRun, articles = null }) {
+export function sectorPrompt({ sector, today, known, assignedThisRun, articles = null, language = 'en' }) {
+  const langBlock = language === 'he'
+    ? 'LANGUAGE: write every free-text value (headline, signal details, location, chain fields, subcontractors, deal assets and rationale, novelty.why_new, sector_notes) in HEBREW. Keep JSON keys and enum values (company_type, signal type, deal type, confidence, sector ids) in English. "company" = the English/Latin name, "company_he" = the Hebrew name.'
+    : 'LANGUAGE: write all free-text values in English.';
   const newsBlock = articles
     ? `NEWS FEED — you cannot browse the web in this run. Below are headlines from Google News (Israel, Hebrew + English, last 14 days), numbered, as "[n] date | publisher | headline".
 Base every finding ONLY on these headlines (you may use background knowledge about a company for context, but say so in the rationale). Many headlines are irrelevant or about other sectors — ignore those.
@@ -85,6 +88,8 @@ ${articles || '(no headlines found)'}
     ? `ALREADY ASSIGNED TO ANOTHER SECTOR IN THIS RUN (do not report them again; if relevant, mention them only in sector_notes):\n${assignedThisRun.join('\n')}`
     : '';
   return `Today in Israel: ${today}.
+
+${langBlock}
 
 Run the scan for sector "${sector.id}" — ${sector.name}: ${sector.scope}.
 

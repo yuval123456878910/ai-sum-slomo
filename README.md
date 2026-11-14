@@ -10,6 +10,8 @@ A research bot plus a website. It scans Israeli industrial companies for financi
 - **Storage**: `db.json` on the `data` branch of this GitHub repo. Free Render instances lose their disk when they sleep, so the data can't stay there.
 - **Schedule**: GitHub Actions (`.github/workflows/scan.yml`) wakes the site at both possible UTC hours and calls `/api/cron`. The site runs each 07:00 / 19:00 slot once. While a scan runs, the site pings itself so it stays awake.
 - **Login**: HTTP basic auth (`ADMIN_USER` / `ADMIN_PASSWORD`).
+- **Email**: after each scan, results go to the addresses you set in **Settings → Email results**. Filters: only new companies, a minimum deal score. The email uses a free [Brevo](https://www.brevo.com) account. Set `BREVO_API_KEY` in Render and use a sender address you verified in Brevo. `RESEND_API_KEY` also works.
+- **Hebrew**: the עברית / English button switches the interface, which flips to right-to-left. **Settings → Language** sets the language of the findings text and the emails.
 
 ## Setup
 

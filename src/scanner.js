@@ -3,6 +3,7 @@ import { getDb, save, flush, uid } from './store.js';
 import { SECTORS, SECTOR_IDS, sectorById } from './sectors.js';
 import { SYSTEM_PROMPT, sectorPrompt } from './prompts.js';
 import { chat, resolveModels } from './openrouter.js';
+import { emailScanResults } from './email.js';
 import { collectStressNews, collectSectorNews, formatArticles } from './news.js';
 
 let running = null;
@@ -122,6 +123,7 @@ export function startScan({ trigger = 'manual', sectors } = {}) {
       clearInterval(keepAwake);
       scan.finishedAt = new Date().toISOString();
       running = null;
+      if (scan.status !== 'error') scan.email = await emailScanResults(scan, getDb());
       save();
       await flush();
       console.log(`[scan ${scan.id}] ${scan.status} — ${scan.findingIds.length} findings`);
@@ -185,7 +187,7 @@ async function runScan(scan, ids) {
         webMaxResults: db.settings.webMaxResults,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: sectorPrompt({ sector, today, known: knownLines, assignedThisRun: assignedLines, articles }) },
+          { role: 'user', content: sectorPrompt({ sector, today, known: knownLines, assignedThisRun: assignedLines, articles, language: db.settings.language }) },
         ],
       });
       st.model = res.model;
