@@ -34,8 +34,11 @@ app.post('/api/cron', (req, res) => {
     console.log('[cron] rejected: CRON_SECRET is not set on the server');
     return res.status(503).json({ error: 'CRON_SECRET is not set on the server (Render → Environment)' });
   }
-  if (!safeEq((req.get('x-cron-token') || '').trim(), CRON_SECRET)) {
-    console.log('[cron] rejected: token does not match CRON_SECRET');
+  const got = (req.get('x-cron-token') || '').trim();
+  if (!safeEq(got, CRON_SECRET)) {
+    // short hash fingerprints (not the secret) so a mismatch can be compared with the GitHub Actions log
+    const fp = (s) => crypto.createHash('sha256').update(s).digest('hex').slice(0, 8);
+    console.log(`[cron] rejected: token does not match CRON_SECRET (received length ${got.length} fingerprint ${fp(got)}; Render has length ${CRON_SECRET.length} fingerprint ${fp(CRON_SECRET)})`);
     return res.status(401).json({ error: 'Bad cron token' });
   }
   const result = tryScheduledRun('github-actions', { force: req.query.force === '1' });

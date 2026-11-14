@@ -2,9 +2,9 @@
 # GitHub cron is UTC and Israel is UTC+2 (winter) or UTC+3 (summer), so it calls at
 # both possible UTC hours; the site runs each slot only once and ignores the extra call.
 #
-# Needs two repository secrets (Settings → Secrets and variables → Actions):
-#   SITE_URL    e.g. https://stress-radar.onrender.com
-#   CRON_SECRET same value as CRON_SECRET in the Render service's Environment
+# Repository secrets (Settings → Secrets and variables → Actions → *Secrets* tab):
+#   CRON_SECRET  same value as CRON_SECRET in the Render service's Environment (required)
+#   SITE_URL     optional, defaults to https://ai-sum-slomo.onrender.com
 name: Scheduled scan
 
 on:
@@ -19,20 +19,27 @@ jobs:
     steps:
       - name: Wake the site and start the scan
         env:
-          SITE_URL: ${{ secrets.SITE_URL }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ secrets.SITE_URL || vars.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || vars.CRON_SECRET }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: |
-          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "::error::Set the SITE_URL and CRON_SECRET repository secrets."; exit 1
+          # strip spaces / line breaks that often sneak in when pasting
+          SITE="$(printf '%s' "${SITE_URL:-https://ai-sum-slomo.onrender.com}" | tr -d ' \r\n')"
+          SITE="${SITE%/}"
+          SECRET="$(printf '%s' "$CRON_SECRET" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          FP="$(printf '%s' "$SECRET" | sha256sum | cut -c1-8)"
+          echo "Site: $SITE"
+          echo "CRON_SECRET: length ${#SECRET}, fingerprint $FP  (compare with the [cron] line in the Render log)"
+          if [ -z "$SECRET" ]; then
+            echo "::error::CRON_SECRET is empty here. Add it under Settings → Secrets and variables → Actions → Secrets → New repository secret."; exit 1
           fi
           for i in 1 2 3 4 5 6 7 8; do
             code=$(curl -s -o out.json -w '%{http_code}' --max-time 120 -X POST \
-              -H "X-Cron-Token: $CRON_SECRET" "${SITE_URL%/}/api/cron?force=$FORCE") || code=000
+              -H "X-Cron-Token: $SECRET" "$SITE/api/cron?force=$FORCE") || code=000
             echo "attempt $i: HTTP $code $(cat out.json 2>/dev/null)"
             [ "$code" = "200" ] && exit 0
-            [ "$code" = "401" ] && { echo "::error::CRON_SECRET does not match the Render service."; exit 1; }
+            [ "$code" = "401" ] && { echo "::error::CRON_SECRET does not match the Render service (see fingerprints)."; exit 1; }
             [ "$code" = "503" ] && { echo "::error::CRON_SECRET is not set in Render (service Environment)."; exit 1; }
             sleep 30
           done
-          echo "::error::Site did not respond."; exit 1
+          echo "::error::Site did not respond at $SITE"; exit 1
