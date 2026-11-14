@@ -21,9 +21,12 @@ export function tryScheduledRun(reason, { force = false } = {}) {
     const hour = israelHour();
     const slot = HOURS.find((h) => hour >= h && hour < h + WINDOW_HOURS);
     if (slot === undefined) return { started: false, reason: `outside scan window (Israel hour ${hour})` };
-    const last = db.scans.find((s) => s.trigger === 'scheduled');
-    if (last && Date.now() - Date.parse(last.startedAt) < (WINDOW_HOURS + 1) * 3600_000)
-      return { started: false, reason: 'this slot already ran', scanId: last.id };
+    // the slot counts as done only if a scheduled scan started inside it (at or after HH:00 today)
+    const now = new Date();
+    const minute = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, minute: '2-digit' }).format(now));
+    const slotStart = now.getTime() - ((hour - slot) * 60 + minute) * 60_000 - now.getSeconds() * 1000 - now.getMilliseconds();
+    const last = db.scans.find((s) => s.trigger === 'scheduled' && Date.parse(s.startedAt) >= slotStart);
+    if (last) return { started: false, reason: 'this slot already ran', scanId: last.id };
   }
   try {
     // a forced run (GitHub "Run workflow" button) is manual: it must not use up the 07:00/19:00 slot
