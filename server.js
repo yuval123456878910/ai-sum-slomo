@@ -1,26 +1,36 @@
 import express from 'express';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { load, getDb, save, dataDir } from './src/store.js';
+import { load, getDb, save, storageLabel, usesGitHub } from './src/store.js';
 import { SECTORS, SECTOR_IDS } from './src/sectors.js';
 import { startScan, currentScan, getApiKey } from './src/scanner.js';
-import { startScheduler, nextRuns, TZ } from './src/scheduler.js';
+import { startScheduler, nextRuns, tryScheduledRun, TZ } from './src/scheduler.js';
 import { listModels, checkKey, resolveModel } from './src/openrouter.js';
 
-load();
+await load();
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/healthz', (_req, res) => res.send('ok'));
 
-// Basic auth for everything else when ADMIN_PASSWORD is set (it is required on Render).
 const USER = process.env.ADMIN_USER || 'admin';
 const PASS = process.env.ADMIN_PASSWORD || '';
+const CRON_SECRET = process.env.CRON_SECRET || '';
 const safeEq = (a, b) => {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 };
+
+// Called by the GitHub Actions workflow at 07:00 / 19:00 Israel time (wakes the free instance).
+app.post('/api/cron', (req, res) => {
+  if (!CRON_SECRET || !safeEq(req.get('x-cron-token') || '', CRON_SECRET)) return res.status(401).json({ error: 'Bad cron token' });
+  const result = tryScheduledRun('github-actions', { force: req.query.force === '1' });
+  console.log('[cron]', result);
+  res.json(result);
+});
+
+// Basic auth for everything else when ADMIN_PASSWORD is set (it is required on Render).
 app.use((req, res, next) => {
   if (!PASS) return next();
   const [type, b64] = (req.headers.authorization || '').split(' ');
@@ -53,7 +63,8 @@ app.get('/api/status', async (_req, res) => {
       return s && { id: s.id, startedAt: s.startedAt, status: s.status, sectors: Object.fromEntries(Object.entries(s.sectors).map(([k, v]) => [k, { status: v.status }])) };
     })(),
     authEnabled: !!PASS,
-    dataDir,
+    storage: storageLabel,
+    uiKeyIsTemporary: usesGitHub,
   });
 });
 
@@ -150,6 +161,6 @@ app.get('/api/export.csv', (_req, res) => {
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Scanner listening on :${port} (data: ${dataDir})${PASS ? '' : ' — WARNING: ADMIN_PASSWORD not set, site is open'}`);
+  console.log(`Scanner listening on :${port} (data: ${storageLabel})${PASS ? '' : ' — WARNING: ADMIN_PASSWORD not set, site is open'}`);
   startScheduler();
 });

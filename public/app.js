@@ -173,6 +173,7 @@ function renderSettings() {
   k.className = 'key-status ' + (s.key.set ? 'ok' : 'bad');
   k.textContent = s.key.set ? `✓ Key active (${s.key.source === 'env' ? 'from Render env var' : 'saved in Settings'}) ${s.key.hint}` : '✗ No key set';
   $('#keyClear').hidden = s.key.source !== 'settings';
+  $('#keyTempNote').hidden = !s.uiKeyIsTemporary;
   $('#modelChosen').textContent = s.settings.model;
   $('#resolvedModel').textContent = s.resolvedModel;
   $('#webMax').value = s.settings.webMaxResults;

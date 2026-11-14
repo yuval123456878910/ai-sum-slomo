@@ -1,28 +1,32 @@
-# Render Blueprint: New → Blueprint → pick this repo.
-# Render will ask you for the two "sync: false" values (your OpenRouter key and a site password).
+# Render Blueprint (free plan): New → Blueprint → pick this repo.
+# Free instances sleep after ~15 min idle and their disk is wiped, so:
+#   - the database is saved to this GitHub repo on the "data" branch (GITHUB_TOKEN)
+#   - .github/workflows/scan.yml wakes the site at 07:00 and 19:00 Israel time
 services:
   - type: web
     name: stress-radar
     runtime: node
-    plan: starter          # always-on (free instances sleep and would miss the 07:00/19:00 scans)
+    plan: free
     region: frankfurt      # closest Render region to Israel
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /healthz
-    disk:
-      name: data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: DATA_DIR
-        value: /var/data
       - key: OPENROUTER_API_KEY
-        sync: false        # ← paste your OpenRouter key here when Render asks
+        sync: false        # ← your OpenRouter key (set it on the service's Environment page)
       - key: OPENROUTER_MODEL
-        value: auto        # or e.g. anthropic/claude-sonnet-4.5, openai/gpt-5, google/gemini-2.5-pro
+        value: auto        # or e.g. anthropic/claude-sonnet-5.5, openai/gpt-5, google/gemini-2.5-pro
       - key: ADMIN_USER
         value: admin
       - key: ADMIN_PASSWORD
-        sync: false        # ← choose a password; the site uses it for browser login
+        sync: false        # ← password for the site login
+      - key: GITHUB_REPO
+        value: yuval123456878910/ai-sum-slomo
+      - key: GITHUB_DATA_BRANCH
+        value: data
+      - key: GITHUB_TOKEN
+        sync: false        # ← fine-grained token: this repo only, Contents read & write
+      - key: CRON_SECRET
+        generateValue: true  # copy this value into the GitHub secret CRON_SECRET

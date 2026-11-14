@@ -2,7 +2,8 @@
 // without spending OpenRouter credits. Do not run this on the Render service.
 import { load, save, uid } from '../src/store.js';
 
-const db = load();
+if (process.env.GITHUB_TOKEN) throw new Error('Refusing to seed demo data into GitHub storage.');
+const db = await load();
 const scanId = uid();
 const now = new Date();
 const ago = (h) => new Date(now - h * 3600_000).toISOString();

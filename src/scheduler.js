@@ -1,43 +1,47 @@
-// Runs the scan at 07:00 and 19:00 Israel time (DST handled by the time zone).
+// Scans at 07:00 and 19:00 Israel time (DST handled by the time zone).
+// On Render's free plan the service sleeps, so GitHub Actions also calls
+// POST /api/cron around those times to wake it; tryScheduledRun() makes sure
+// each slot runs once, whichever trigger arrives first.
 import cron from 'node-cron';
 import { getDb } from './store.js';
 import { startScan, currentScan } from './scanner.js';
 
 export const TZ = 'Asia/Jerusalem';
 export const HOURS = [7, 19];
+const WINDOW_HOURS = 2; // a slot can still start up to 2h late (wake-up / Actions delays)
 
-function israelNow() {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-      .formatToParts(new Date())
-      .map((p) => [p.type, p.value]),
-  );
-  return { hour: Number(parts.hour), minute: Number(parts.minute) };
-}
+const israelHour = (d = new Date()) =>
+  Number(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(d));
 
-function fire(reason) {
+export function tryScheduledRun(reason, { force = false } = {}) {
   const db = getDb();
-  if (!db.settings.scheduleEnabled) return console.log(`[schedule] skipped (${reason}): schedule disabled`);
-  if (currentScan()) return console.log(`[schedule] skipped (${reason}): scan already running`);
+  if (!db.settings.scheduleEnabled && !force) return { started: false, reason: 'schedule disabled' };
+  if (currentScan()) return { started: false, reason: 'scan already running', scanId: currentScan().id };
+  if (!force) {
+    const hour = israelHour();
+    const slot = HOURS.find((h) => hour >= h && hour < h + WINDOW_HOURS);
+    if (slot === undefined) return { started: false, reason: `outside scan window (Israel hour ${hour})` };
+    const last = db.scans.find((s) => s.trigger === 'scheduled');
+    if (last && Date.now() - Date.parse(last.startedAt) < (WINDOW_HOURS + 1) * 3600_000)
+      return { started: false, reason: 'this slot already ran', scanId: last.id };
+  }
   try {
-    startScan({ trigger: 'scheduled' });
+    const scan = startScan({ trigger: 'scheduled' });
+    console.log(`[schedule] started via ${reason}`);
+    return { started: true, scanId: scan.id };
   } catch (e) {
-    console.error('[schedule] failed to start:', e.message);
+    return { started: false, reason: e.message };
   }
 }
 
 export function startScheduler() {
-  cron.schedule(`0 ${HOURS.join(',')} * * *`, () => fire('cron'), { timezone: TZ });
+  cron.schedule(`0 ${HOURS.join(',')} * * *`, () => console.log('[schedule]', tryScheduledRun('cron')), { timezone: TZ });
   console.log(`[schedule] scans at ${HOURS.map((h) => `${String(h).padStart(2, '0')}:00`).join(' & ')} ${TZ}`);
-
-  // Catch-up: if the service restarted (deploy, crash) within 2h after a slot and that slot never ran.
-  const { hour } = israelNow();
-  const slot = HOURS.find((h) => hour >= h && hour < h + 2);
-  if (slot !== undefined) {
-    const last = getDb().scans.find((s) => s.trigger === 'scheduled');
-    const recent = last && Date.now() - Date.parse(last.startedAt) < 3 * 3600_000;
-    if (!recent) setTimeout(() => fire('catch-up'), 15_000);
-  }
+  // Catch-up after a restart/wake-up inside a slot window.
+  setTimeout(() => {
+    const r = tryScheduledRun('startup');
+    if (r.started) console.log('[schedule] catch-up scan started');
+  }, 20_000);
 }
 
 // Next run times, as ISO strings, for the UI.
@@ -46,8 +50,7 @@ export function nextRuns(count = 2) {
   const now = Date.now();
   for (let h = 0; h < 72 && out.length < count; h++) {
     const t = new Date(Math.ceil(now / 3600_000) * 3600_000 + h * 3600_000);
-    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', hourCycle: 'h23' }).format(t));
-    if (HOURS.includes(hour)) out.push(t.toISOString());
+    if (HOURS.includes(israelHour(t))) out.push(t.toISOString());
   }
   return out;
 }

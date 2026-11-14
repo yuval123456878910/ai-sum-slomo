@@ -1,5 +1,5 @@
 // Runs the five sector scans one after another and stores the findings.
-import { getDb, save, uid } from './store.js';
+import { getDb, save, flush, uid } from './store.js';
 import { SECTORS, SECTOR_IDS, sectorById } from './sectors.js';
 import { SYSTEM_PROMPT, sectorPrompt } from './prompts.js';
 import { chat, resolveModel } from './openrouter.js';
@@ -108,15 +108,21 @@ export function startScan({ trigger = 'manual', sectors } = {}) {
   db.scans.unshift(scan);
   save();
   running = scan;
+  // Render free instances sleep after ~15 min without inbound HTTP traffic.
+  // Outgoing API calls don't count, so ping our own public URL while scanning.
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  const keepAwake = selfUrl ? setInterval(() => fetch(`${selfUrl}/healthz`).catch(() => {}), 4 * 60_000) : null;
   runScan(scan, ids)
     .catch((e) => {
       scan.status = 'error';
       scan.error = e.message;
     })
-    .finally(() => {
+    .finally(async () => {
+      clearInterval(keepAwake);
       scan.finishedAt = new Date().toISOString();
       running = null;
       save();
+      await flush();
       console.log(`[scan ${scan.id}] ${scan.status} — ${scan.findingIds.length} findings`);
     });
   return scan;

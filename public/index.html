@@ -65,7 +65,7 @@
         <div class="panel">
           <h2>OpenRouter API key</h2>
           <p id="keyStatus" class="key-status"></p>
-          <p class="muted small">Recommended: set <code>OPENROUTER_API_KEY</code> in Render → your service → Environment. A key saved here overrides it and is stored on the service's disk.</p>
+          <p class="muted small">Recommended: set <code>OPENROUTER_API_KEY</code> in Render → your service → Environment. A key saved here overrides it <span id="keyTempNote">until the service restarts or goes to sleep (it is never written to GitHub)</span>.</p>
           <div class="row">
             <input id="keyInput" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
             <button id="keyTest" class="btn ghost">Test</button>
