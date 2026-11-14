@@ -2,7 +2,10 @@
 
 A research bot plus a website. It scans Israeli industrial companies for financial and operational stress in five sectors: plastics, food, packaging, chemicals and metal. It also scores how likely each case is to become a real-estate or business deal. Scans run at **07:00 and 19:00 Israel time**, and you can also start one with the **Run scan now** button.
 
-- **Research**: OpenRouter chat model + OpenRouter web-search plugin. Each sector is its own call. A company gets one primary sector. Repeat findings are marked as *update* (not *new*) and keep their sector across runs.
+- **Research**: two modes, set in **Settings**.
+  - **Free** (default, $0): the bot collects Google News headlines from the last 14 days, in Hebrew and English. It hands them to free OpenRouter models, with backups if one is down.
+  - **Web search** (paid, about 4¢ per sector): OpenRouter's web plugin reads full articles. With `auto`, it uses Claude Sonnet.
+  Each sector is its own call. A company gets one primary sector. Repeat findings are marked as *update*, not *new*.
 - **Hosting**: Render free web service.
 - **Storage**: `db.json` on the `data` branch of this GitHub repo. Free Render instances lose their disk when they sleep, so the data can't stay there.
 - **Schedule**: GitHub Actions (`.github/workflows/scan.yml`) wakes the site at both possible UTC hours and calls `/api/cron`. The site runs each 07:00 / 19:00 slot once. While a scan runs, the site pings itself so it stays awake.
@@ -40,4 +43,6 @@ npm start           # http://localhost:3000
 
 ## Cost
 
-Hosting is $0. Each scan makes 5 model calls with web search, twice a day, for about 300 calls a month. You pay for these through OpenRouter, at the price of the model you choose. The web plugin adds a small fee per search.
+Free mode costs $0: Render free plan, Google News RSS and `:free` OpenRouter models. The OpenRouter key must not have a $0 spending cap that blocks requests. Set no limit, or a small one, and with $0 credit nothing can be charged. Free models allow about 50 requests a day, and a scan uses 5.
+
+Web-search mode makes about 300 paid calls a month. Expect roughly $10–12 a month for search, plus model costs.

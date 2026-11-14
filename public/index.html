@@ -76,15 +76,17 @@
         </div>
 
         <div class="panel">
-          <h2>Model</h2>
-          <p class="muted small">Web search is added by OpenRouter's web plugin, so most chat models work. <b>auto</b> picks the newest Claude Sonnet.</p>
+          <h2>Research source &amp; model</h2>
+          <label class="check"><input type="radio" name="research" value="free" /> <b>Free</b>: Google News headlines + free model ($0)</label>
+          <label class="check"><input type="radio" name="research" value="web" /> <b>Web search</b>: OpenRouter web plugin, reads full articles (about 4¢ per sector)</label>
+          <p class="muted small"><b>auto</b> picks the best free models (with backups) in Free mode, and the newest Claude Sonnet in Web search mode.</p>
           <input id="modelFilter" type="search" placeholder="Filter models (claude, gpt, gemini…)" />
           <select id="modelSelect" size="8"></select>
           <p class="muted small">Selected: <code id="modelChosen"></code> · resolves to <code id="resolvedModel"></code></p>
-          <label class="field">Web results per sector search
+          <label class="field" id="webMaxField">Web results per sector search
             <input id="webMax" type="number" min="3" max="25" />
           </label>
-          <button id="modelSave" class="btn primary">Save model</button>
+          <button id="modelSave" class="btn primary">Save</button>
           <p id="modelMsg" class="msg"></p>
         </div>
 

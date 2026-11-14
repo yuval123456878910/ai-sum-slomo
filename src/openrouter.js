@@ -28,27 +28,43 @@ export async function listModels() {
   return list;
 }
 
-// "auto" = newest Claude Sonnet on OpenRouter (strong at research + structured output).
-export async function resolveModel(model) {
-  if (model && model !== 'auto') return model;
-  try {
-    const list = await listModels();
-    const pick = list.find((m) => /^anthropic\/claude-sonnet/.test(m.id) && !/:/.test(m.id));
-    if (pick) return pick.id;
-  } catch {
-    /* fall through */
-  }
-  return 'anthropic/claude-sonnet-4.5';
-}
+// Free models to prefer for "auto" in free mode, strongest first (only ones OpenRouter still lists are used).
+const FREE_PREFERENCE = [/^nvidia\/nemotron-3-ultra/, /^google\/gemma-4-31b/, /^nvidia\/nemotron-3\.5-super/, /^thinkingmachines\/inkling/, /^inclusionai\/ling/, /^baidu\/ernie/];
 
-export async function chat({ key, model, messages, webMaxResults = 10 }) {
+// Returns [primary, ...fallbacks]. OpenRouter tries the next one if a model is down or rate-limited.
+// "auto" = best free models in free mode, newest Claude Sonnet in web-search mode.
+export async function resolveModels(model, research = 'free') {
+  if (model && model !== 'auto') return [model];
+  let list = [];
+  try {
+    list = await listModels();
+  } catch {
+    /* use fallbacks below */
+  }
+  if (research === 'free') {
+    const free = list.filter((m) => m.id.endsWith(':free') && (m.context || 0) >= 100_000);
+    const picked = [];
+    for (const re of FREE_PREFERENCE) {
+      const m = free.find((x) => re.test(x.id));
+      if (m && !picked.includes(m.id)) picked.push(m.id);
+    }
+    for (const m of free) if (picked.length < 3 && !picked.includes(m.id)) picked.push(m.id);
+    return picked.length ? picked.slice(0, 3) : ['google/gemma-4-31b-it:free'];
+  }
+  const sonnet = list.find((m) => /^anthropic\/claude-sonnet/.test(m.id) && !/:/.test(m.id));
+  return [sonnet?.id || 'anthropic/claude-sonnet-4.5'];
+}
+export const resolveModel = async (model, research) => (await resolveModels(model, research))[0];
+
+export async function chat({ key, models, messages, web = false, webMaxResults = 10 }) {
   const res = await fetch(`${BASE}/chat/completions`, {
     method: 'POST',
     headers: headers(key),
     body: JSON.stringify({
-      model,
+      model: models[0],
+      ...(models.length > 1 ? { models } : {}),
       messages,
-      plugins: [{ id: 'web', max_results: webMaxResults }],
+      ...(web ? { plugins: [{ id: 'web', max_results: webMaxResults }] } : {}),
       temperature: 0.2,
       max_tokens: 12000,
     }),
@@ -67,7 +83,7 @@ export async function chat({ key, model, messages, webMaxResults = 10 }) {
   const citations = (msg.annotations || [])
     .filter((a) => a.type === 'url_citation' && a.url_citation?.url)
     .map((a) => ({ url: a.url_citation.url, title: a.url_citation.title || '' }));
-  return { content: msg.content || '', citations, usage: j.usage || null, model: j.model || model };
+  return { content: msg.content || '', citations, usage: j.usage || null, model: j.model || models[0] };
 }
 
 export async function checkKey(key) {

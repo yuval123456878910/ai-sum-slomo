@@ -2,7 +2,8 @@
 import { getDb, save, flush, uid } from './store.js';
 import { SECTORS, SECTOR_IDS, sectorById } from './sectors.js';
 import { SYSTEM_PROMPT, sectorPrompt } from './prompts.js';
-import { chat, resolveModel } from './openrouter.js';
+import { chat, resolveModels } from './openrouter.js';
+import { collectStressNews, collectSectorNews, formatArticles } from './news.js';
 
 let running = null;
 export const currentScan = () => running;
@@ -132,9 +133,19 @@ async function runScan(scan, ids) {
   const db = getDb();
   const { key } = getApiKey();
   if (!key) throw new Error('No OpenRouter API key. Set OPENROUTER_API_KEY in Render or add one in Settings.');
-  const model = await resolveModel(db.settings.model);
-  scan.model = model;
-  console.log(`[scan ${scan.id}] ${scan.trigger} • ${model} • ${ids.join(', ')}`);
+  const research = db.settings.research || 'free';
+  const models = await resolveModels(db.settings.model, research);
+  scan.model = models[0];
+  scan.research = research;
+  console.log(`[scan ${scan.id}] ${scan.trigger} • ${research} • ${models.join(' > ')} • ${ids.join(', ')}`);
+
+  // Free mode: gather headlines from Google News instead of paid web search.
+  let stressNews = [];
+  if (research === 'free') {
+    stressNews = await collectStressNews();
+    scan.newsCount = stressNews.length;
+    console.log(`[scan ${scan.id}] ${stressNews.length} distress headlines collected`);
+  }
 
   const since = Date.now() - 60 * 86400_000;
   const recent = db.findings.filter((f) => Date.parse(f.foundAt) > since);
@@ -158,18 +169,37 @@ async function runScan(scan, ids) {
     save();
     try {
       const assignedLines = [...assigned.values()].map((f) => `- ${f.company} → ${f.primarySector}`);
+      let articles = null;
+      let articleList = null;
+      if (research === 'free') {
+        const sectorNews = await collectSectorNews(id);
+        const seen = new Set(sectorNews.map((a) => a.url));
+        articleList = [...sectorNews, ...stressNews.filter((a) => !seen.has(a.url))].slice(0, 150);
+        articles = formatArticles(articleList);
+        st.articles = articleList.length;
+      }
       const res = await chat({
         key,
-        model,
+        models,
+        web: research === 'web',
         webMaxResults: db.settings.webMaxResults,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: sectorPrompt({ sector, today, known: knownLines, assignedThisRun: assignedLines }) },
+          { role: 'user', content: sectorPrompt({ sector, today, known: knownLines, assignedThisRun: assignedLines, articles }) },
         ],
       });
+      st.model = res.model;
       const parsed = parseJson(res.content);
       let added = 0;
       for (const raw of arr(parsed.findings)) {
+        if (articleList) {
+          // map cited headline numbers ([n]) back to the real articles
+          raw.sources = arr(raw.sources).map((s) => {
+            const n = Number(typeof s === 'object' && s ? s.id ?? s.n : String(s).replace(/\D/g, ''));
+            const a = articleList[n - 1];
+            return a ? { title: a.title, url: a.url, publisher: a.source, date: a.date } : s;
+          });
+        }
         const f = normalize(raw, id);
         if (!f.company) continue;
         const k = companyKey(f.company) || companyKey(f.companyHe);

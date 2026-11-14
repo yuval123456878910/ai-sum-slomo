@@ -55,7 +55,7 @@ app.get('/api/status', async (_req, res) => {
     timezone: TZ,
     key: { set: !!key, source, hint: keyHint(key) },
     settings,
-    resolvedModel: await resolveModel(settings.model),
+    resolvedModel: await resolveModel(settings.model, settings.research),
     sectors: SECTORS,
     counts: { findings: db.findings.length, scans: db.scans.length },
     lastScan: (() => {
@@ -124,6 +124,7 @@ app.put('/api/settings', (req, res) => {
   if (Array.isArray(b.sectors)) s.sectors = b.sectors.filter((x) => SECTOR_IDS.includes(x));
   if (typeof b.model === 'string' && b.model.trim()) s.model = b.model.trim();
   if (typeof b.scheduleEnabled === 'boolean') s.scheduleEnabled = b.scheduleEnabled;
+  if (b.research === 'free' || b.research === 'web') s.research = b.research;
   if (b.webMaxResults) s.webMaxResults = Math.max(3, Math.min(25, Number(b.webMaxResults) || 10));
   if (typeof b.openrouterKey === 'string') s.openrouterKey = b.openrouterKey.trim(); // "" clears the override
   save();

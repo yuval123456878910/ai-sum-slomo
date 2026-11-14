@@ -69,7 +69,15 @@ OUTPUT: reply with ONE fenced \`\`\`json block and nothing else, matching this s
 }
 "deal_potential.score" is 0–10 (10 = strong, near-term, actionable real-estate or business opportunity).`;
 
-export function sectorPrompt({ sector, today, known, assignedThisRun }) {
+export function sectorPrompt({ sector, today, known, assignedThisRun, articles = null }) {
+  const newsBlock = articles
+    ? `NEWS FEED — you cannot browse the web in this run. Below are headlines from Google News (Israel, Hebrew + English, last 14 days), numbered, as "[n] date | publisher | headline".
+Base every finding ONLY on these headlines (you may use background knowledge about a company for context, but say so in the rationale). Many headlines are irrelevant or about other sectors — ignore those.
+For "sources", list the headlines you used as objects with their number only, e.g. "sources": [{"id": 12}, {"id": 40}] — do NOT write URLs. If a headline is ambiguous, set confidence "low". If nothing here fits this sector, return an empty findings array.
+
+${articles || '(no headlines found)'}
+`
+    : '';
   const knownBlock = known.length
     ? `ALREADY IN OUR DATABASE (last 60 days). Only include one of these if there is a NEW development; say what is new in "novelty.why_new":\n${known.join('\n')}`
     : 'Our database is empty — this is the first scan.';
@@ -84,5 +92,7 @@ Focus on news and filings from roughly the last 14 days, and flag anything older
 
 ${knownBlock}
 
-${assignedBlock}`.trim();
+${assignedBlock}
+
+${newsBlock}`.trim();
 }

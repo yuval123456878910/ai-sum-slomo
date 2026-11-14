@@ -177,6 +177,9 @@ function renderSettings() {
   $('#modelChosen').textContent = s.settings.model;
   $('#resolvedModel').textContent = s.resolvedModel;
   $('#webMax').value = s.settings.webMaxResults;
+  const research = s.settings.research || 'free';
+  $$('input[name=research]').forEach((r) => (r.checked = r.value === research));
+  $('#webMaxField').hidden = research !== 'web';
   $('#schedOn').checked = s.settings.scheduleEnabled;
   $('#sectorChecks').innerHTML = s.sectors.map((x) => `<label class="check"><input type="checkbox" value="${x.id}" ${s.settings.sectors.includes(x.id) ? 'checked' : ''}/> <b>${esc(x.name)}</b> <span class="muted small">${esc(x.scope)}</span></label>`).join('');
   renderModelList();
@@ -243,6 +246,7 @@ for (const id of ['q', 'days', 'minScore', 'onlyNew', 'starred', 'showDismissed'
 }
 
 $('#modelFilter').addEventListener('input', renderModelList);
+$$('input[name=research]').forEach((r) => r.addEventListener('change', () => ($('#webMaxField').hidden = r.value !== 'web' || !r.checked)));
 $('#keyTest').addEventListener('click', async () => {
   flash($('#keyMsg'), 'Testing…');
   try {
@@ -264,7 +268,8 @@ $('#keyClear').addEventListener('click', async () => {
   flash($('#keyMsg'), 'Saved key removed.');
 });
 $('#modelSave').addEventListener('click', async () => {
-  await api('/api/settings', { method: 'PUT', body: JSON.stringify({ model: $('#modelSelect').value || 'auto', webMaxResults: $('#webMax').value }) });
+  const research = $('input[name=research]:checked')?.value || 'free';
+  await api('/api/settings', { method: 'PUT', body: JSON.stringify({ model: $('#modelSelect').value || 'auto', research, webMaxResults: $('#webMax').value }) });
   await loadStatus(); renderSettings();
   flash($('#modelMsg'), 'Saved.');
 });

@@ -24,6 +24,7 @@ const defaults = () => ({
     sectors: [...SECTOR_IDS],
     model: process.env.OPENROUTER_MODEL || 'auto',
     scheduleEnabled: true,
+    research: 'free', // 'free' = Google News RSS + free model, 'web' = OpenRouter web search (paid)
     webMaxResults: 10,
     openrouterKey: '', // UI override; never written to GitHub
   },
