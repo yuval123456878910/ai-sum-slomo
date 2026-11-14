@@ -214,6 +214,13 @@ async function runScan(scan, ids) {
     } catch (e) {
       Object.assign(st, { status: 'error', error: e.message });
       console.error(`[scan ${scan.id}] ${id} failed:`, e.message);
+      if (e.fatal) {
+        scan.error = `${e.message} — check the key's credit/limit at https://openrouter.ai/settings/keys`;
+        for (const [sid, s] of Object.entries(scan.sectors)) if (s.status === 'queued') Object.assign(s, { status: 'error', error: 'skipped (key error)' });
+        st.finishedAt = new Date().toISOString();
+        save();
+        break;
+      }
     }
     st.finishedAt = new Date().toISOString();
     save();

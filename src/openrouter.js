@@ -55,7 +55,12 @@ export async function chat({ key, model, messages, webMaxResults = 10 }) {
     signal: AbortSignal.timeout(10 * 60_000),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${text.slice(0, 400)}`);
+  if (!res.ok) {
+    let msg = text.slice(0, 400);
+    try { msg = JSON.parse(text).error?.message || msg; } catch {}
+    // 401 bad key, 402 no credits, 403 key limit reached: every other call would fail the same way
+    throw Object.assign(new Error(`OpenRouter ${res.status}: ${msg}`), { fatal: [401, 402, 403].includes(res.status) });
+  }
   const j = JSON.parse(text);
   if (j.error) throw new Error(`OpenRouter: ${j.error.message || JSON.stringify(j.error)}`);
   const msg = j.choices?.[0]?.message || {};
